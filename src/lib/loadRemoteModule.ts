@@ -28,20 +28,29 @@ interface CreateLoadRemoteModule {
   (options?: CreateLoadRemoteModuleOptions): LoadRemoteModule;
 }
 
+export const loadModuleSource = (url, fetcher) => {
+  const _fetcher = fetcher || defaultFetcher;
+  return _fetcher(url);
+}
+
+export const activateModule = (moduleSource, requires) => {
+  const exports = {};
+  const module = { exports };
+  const func = new Function("require", "module", "exports", moduleSource);
+  func(requires, module, exports);
+  return module.exports;
+}
+
 export const createLoadRemoteModule: CreateLoadRemoteModule = ({
-  requires,
-  fetcher
+  fetcher,
+  requires
 } = {}) => {
   const _requires = requires || defaultRequires;
   const _fetcher = fetcher || defaultFetcher;
 
   return memoize(url =>
-    _fetcher(url).then(data => {
-      const exports = {};
-      const module = { exports };
-      const func = new Function("require", "module", "exports", data);
-      func(_requires, module, exports);
-      return module.exports;
+    loadModuleSource(url, _fetcher).then((moduleSource) => {
+      return activateModule(moduleSource, _requires);
     })
   );
 };
